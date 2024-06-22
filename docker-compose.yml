@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  mysql-master:
+    image: mysql:5.7
+    container_name: mysql-master
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: registration
+    ports:
+      - "3306:3306"
+    volumes:
+      - master-data:/var/lib/mysql
+
+  mysql-slave1:
+    image: mysql:5.7
+    container_name: mysql-slave1
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+    ports:
+      - "3307:3306"
+    depends_on:
+      - mysql-master
+    command: --server-id=2 --log-slave-updates=1 --relay-log=relay-log-bin --log-bin=mysql-bin --read-only=1 --slave-skip-errors=all
+
+  mysql-slave2:
+    image: mysql:5.7
+    container_name: mysql-slave2
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+    ports:
+      - "3308:3306"
+    depends_on:
+      - mysql-master
+    command: --server-id=3 --log-slave-updates=1 --relay-log=relay-log-bin --log-bin=mysql-bin --read-only=1 --slave-skip-errors=all
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    ports:
+      - "6379:6379"
+
+  mongo:
+    image: mongo:latest
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  php:
+    image: php:7.4-apache
+    container_name: php
+    volumes:
+      - ./php:/var/www/html
+    ports:
+      - "8080:80"
+    depends_on:
+      - mysql-master
+      - redis
+      - mongo
+
+  node:
+    image: node:14
+    container_name: node
+    volumes:
+      - ./node:/usr/src/app
+    working_dir: /usr/src/app
+    command: npm start
+    ports:
+      - "3000:3000"
+    depends_on:
+      - mysql-master
+      - redis
+      - mongo
+
+volumes:
+  master-data:
+  mongo-data:
